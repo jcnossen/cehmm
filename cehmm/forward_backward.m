@@ -34,7 +34,7 @@ function [logpost, loga, logb] = forward_backward(logemission, tr, seq, prior)
             loge = logemission(seq(k,:),z);
             loga(k,z) = loge + logsum(loga(k-1, 1:m) + logtr(1:m, z)');
         end
-        if mod(k,max(n/10,1))==0, fprintf('fw(%d/%d)\n', k,n); end
+   %     if mod(k,max(n/10,1))==0, fprintf('fw(%d/%d)\n', k,n); end
     end
     % b(k, l) is the beta(k) for the value of z=l
     % b(k, l) = p(x(k+1:n) | z(k), model)
@@ -44,7 +44,7 @@ function [logpost, loga, logb] = forward_backward(logemission, tr, seq, prior)
         for z=1:m % z(k)
             logb(k,z) = logsum( logb(k+1,1:m) + logemission(seq(k+1,:), 1:m) + logtr(z, 1:m) );
         end
-        if mod(k,max(n/10,1))==0, fprintf('bw(%d/%d)\n', n-k,n); end
+ %       if mod(k,max(n/10,1))==0, fprintf('bw(%d/%d)\n', n-k,n); end
     end
         
     logpost = loga+logb; % posterior (k, z) is probability of z for measurement k
