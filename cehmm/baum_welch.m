@@ -3,18 +3,19 @@ function [tr_, prior_] = baum_welch(logemission, tr, emitted, prior)
     if nargin == 0
         % test case
         tr=rand(3)+eye(3)*5;
-        tr=norm_rows(tr);
+        tr=normalize_rows(tr);
         prior = [1 0 0];
         emit_means = 1:3;
         emit_sigma = [.1 .1 .1];
-        logemission = @(x, z) normpdf(x,emit_means(z),emit_sigma(z));
+        %emission = @(x, z) ( normpdf(x,emit_means(z),emit_sigma(z)) )
+        logemission = @(x,z) -(x-emit_means(z)).^2./(2*emit_sigma(z).^2) - log(emit_sigma(z)*sqrt(2*pi));
         [emitted, seq] = generate_sequence(emit_means, emit_sigma, tr, 10000, prior);
         plot([ emitted seq] );
         
         % To test our code, we distort transition matrix and see if it converges to the right
         % values again
         
-        tr=norm_rows(tr.*sqrt(rand(size(tr))));
+        tr=normalize_rows(tr.*sqrt(rand(size(tr))));
        
         [tr_, prior_] = baum_welch_iterate(logemission, tr,emitted,prior,1e-4);
         
@@ -27,8 +28,10 @@ end
  
 function [tr_, prior_] =  baum_welch_iterate(logemission,tr,emitted,prior, maxdist)
     if nargin<5, maxdist=1e-4;end;
-        
+    
     for it=1:60
+        tr = normalize_rows(tr);
+        
         [logpost, logalpha, logbeta] = forward_backward(logemission, tr, emitted, prior);
         prior_ = exp(logpost(1,:));
 
@@ -52,11 +55,6 @@ function [tr_, prior_] =  baum_welch_iterate(logemission,tr,emitted,prior, maxdi
 end
 
 
-function m=norm_rows(m)
-    for k=1:size(m,1)
-        m(k,:) = m(k,:) ./ sum(m(k,:));
-    end
-end
 
 function s = logsum2(logp, dim)
     b = max (logp,[],dim);
