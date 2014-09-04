@@ -1,5 +1,5 @@
 
-function [tr_, prior_] = baum_welch(logemission, tr, emitted, prior)
+function [tr_, prior_] = baum_welch(logemission, tr, emitted, prior, maxdist)
     if nargin == 0
         % test case
         tr=rand(3)+eye(3)*5;
@@ -8,7 +8,7 @@ function [tr_, prior_] = baum_welch(logemission, tr, emitted, prior)
         emit_means = 1:3;
         emit_sigma = [.1 .1 .1];
         %emission = @(x, z) ( normpdf(x,emit_means(z),emit_sigma(z)) )
-        logemission = @(x,z) -(x-emit_means(z)).^2./(2*emit_sigma(z).^2) - log(emit_sigma(z)*sqrt(2*pi));
+        logemission = @(x,z) lognormal(x,z,emit_means,emit_sigma);
         [emitted, seq] = generate_sequence(emit_means, emit_sigma, tr, 10000, prior);
         plot([ emitted seq] );
         
@@ -22,27 +22,49 @@ function [tr_, prior_] = baum_welch(logemission, tr, emitted, prior)
         tr,tr_
         
     else
-        [tr_,prior_]=baum_welch_iterate(logemission,tr,emitted,prior);
+        if nargin<5, maxdist=1e-4; end;
+        
+        [tr_,prior_]=baum_welch_iterate(logemission,tr,emitted,prior,maxdist);
     end
 end
  
 function [tr_, prior_] =  baum_welch_iterate(logemission,tr,emitted,prior, maxdist)
     if nargin<5, maxdist=1e-4;end;
+    if ~iscell(emitted), emitted={emitted}; end
     
     for it=1:60
         tr = normalize_rows(tr);
         
-        [logpost, logalpha, logbeta] = forward_backward(logemission, tr, emitted, prior);
-        prior_ = exp(logpost(1,:));
+        for k=1:length(emitted)
+            [logpost{k}, logalpha{k}, logbeta{k}] = forward_backward(logemission, tr, emitted{k}, prior);
+            denum{k} = logsum2(logalpha{k} + logbeta{k}, 2);
+            % TODO: use other emissions?
+            l_post = logpost{k};
+            if (k==1), prior_ = exp(l_post(1,:));end;
+        end
 
         tr_ = zeros(size(tr));
-        denum = logsum2(logalpha + logbeta, 2);
         for i=1:size(tr,1)
             for j=1:size(tr,1)
+                xi_sum = zeros(1,length(emitted));
+                gamma_sum = xi_sum;
+                
                 % Compute xi(t): probability of being in state i at time t and state j at time t+1
-                xi = logalpha(1:end-1,i) + log(tr(i,j)) + logbeta(2:end,j) + logemission(emitted(2:end), j) - denum(1:end-1);
+                for k=1:length(emitted)
+                    % Copy data from cell matrices for every measurement
+                    l_a = logalpha{k}; l_b = logbeta{k};
+                    l_post = logpost{k};
+                    denum_ = denum{k};
+                    emitted_ = emitted{k};
+                    
+                    % Compute xi
+                    xi = l_a(1:end-1,i) + log(tr(i,j)) + l_b(2:end,j) + logemission(emitted_(2:end), j) - denum_(1:end-1);
+                    xi_sum(k) = logsum(xi);
+                    gamma_sum(k) = logsum(l_post(1:end-1,i));
+                end
+                
             %    tr_(i,j) = 
-                tr_(i,j) = exp( logsum(xi) - logsum(logpost(1:end-1,i)) );
+                tr_(i,j) = exp( logsum(xi_sum) - logsum(gamma_sum) );
             end
         end
 

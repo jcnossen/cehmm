@@ -10,6 +10,23 @@ function [seq, logprob] = maximum_likelihood_sequence(samples, tr, logemission, 
 % emission(x, z) is the probability (density) of emitting x given z, where
 % z can be a row vector
 
+    if nargin==0
+        tr=[ 10 0.1 0.1 ; 0.3 7 0.2; 0.3 7 0.2];
+        tr=normalize_rows(tr);
+        prior = [1 0 0];
+        emit_means = 1:3;
+        emit_sigma = [1 1 1]*.5;
+        %emission = @(x, z) ( normpdf(x,emit_means(z),emit_sigma(z)) )
+        logemission = @(x,z) lognormal(x,z,emit_means,emit_sigma);
+        [emitted, true_seq] = generate_sequence(emit_means, emit_sigma, tr, 10000, prior);
+        [seq,logprob] = maximum_likelihood_sequence(true_seq, tr, logemission, prior);
+        plot([ emitted true_seq seq' ] );
+    else
+        [seq,logprob]=maximum_likelihood_sequence_(samples, tr, logemission, prior);
+    end
+end
+
+function [seq,logprob]=maximum_likelihood_sequence_(samples, tr, logemission, prior)
     m = size(tr,1);
     n = length(samples);
     if isscalar(prior)
