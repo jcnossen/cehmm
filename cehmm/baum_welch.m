@@ -1,4 +1,6 @@
-
+% Baum welch estimates a transition matrix from a set of emission sequences and an initial transition matrix.
+% The transition matrix is trained using an "Expectation-Maximization" scheme, for which no global best fit is guaranteed.
+% Logemission is a function or matrix that can be accessed like 'logemission(x,z)', where x are the emission values and z are the hidden states for those values (See example in code)
 function [tr_, prior_] = baum_welch(logemission, tr, emitted, prior, maxdist)
     if nargin == 0
         % test case
@@ -15,11 +17,12 @@ function [tr_, prior_] = baum_welch(logemission, tr, emitted, prior, maxdist)
         % To test our code, we distort transition matrix and see if it converges to the right
         % values again
         
+        org=tr;
         tr=normalize_rows(tr.*sqrt(rand(size(tr))));
        
         [tr_, prior_] = baum_welch_iterate(logemission, tr,emitted,prior,1e-4);
         
-        tr,tr_
+        tr,tr_,org
         
     else
         if nargin<5, maxdist=1e-4; end;
